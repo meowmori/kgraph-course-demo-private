@@ -55,11 +55,12 @@ def get_entity(input_str):
 
 
 # 提示词模板
-PROMPT_TEMPLATE = """已知信息：{context} 
+PROMPT_TEMPLATE = """已知信息：
+{context} 
 根据上面提供的三元组信息，简洁而专业地回答用户的问题（该问题和《原神》这款游戏相关）。如果无法从中得到答案，请你根据你的理解回答用户问题。问题是：{question}"""
 
 
-PROMPT_TEMPLATE1 = """请你用你的已有知识，简洁而专业地回答用户的问题（该问题和《原神》这款游戏相关）。如果无法从中得到答案，请结合互联网搜索结果，根据你的理解回答用户问题。问题是：{question}"""
+PROMPT_TEMPLATE1 = """请你用你的已有知识，结合互联网搜索结果，根据你的理解简洁而专业地回答用户问题。问题是：{question}"""
 
 
 # 获取提示词模板
@@ -83,7 +84,14 @@ def search_entity_from_neo4j(question, entities):
     query = """
     MATCH (a)-[r]->(b)
     WHERE a.name IN $entity_names
-    RETURN a.name AS start_node, type(r) AS relation, b.name AS end_node
+    RETURN 
+    a.name AS start_node, 
+    type(r) AS relation, 
+    CASE 
+        WHEN b.name IS NOT NULL THEN b.name
+        WHEN b.typeName IS NOT NULL THEN b.typeName
+        ELSE 'Unknown'
+    END AS end_node
     """
     params = {"entity_names": entities}
     results, meta = db.cypher_query(query, params)
@@ -100,7 +108,7 @@ def search_entity_from_neo4j(question, entities):
 class InteractiveChat:
     def __init__(self, model):
         self.model = model
-        self.messages = [{"role": "system", "content": "You are a helpful assistant."}]
+        self.messages = [{"role": "system", "content": "Link start."}]
 
     def chat(self, input_str):
         input_str = input_str.replace(" ", "").strip()
@@ -116,13 +124,45 @@ class InteractiveChat:
         print("提示词:", prompt)
         chain = self.model | StrOutputParser()
         response = chain.invoke(prompt)
-        self.messages.append({"role": "user", "content": prompt})
+        self.messages.append({"role": "user", "content": input_str})
         self.messages.append({"role": "assistant", "content": response})
         print("消息记录: ", self.messages)
         return response
 
     def clear_history(self):
-        self.messages = [{"role": "system", "content": "You are a helpful assistant."}]
+        self.messages = [{"role": "system", "content": "Link start."}]
+
+
+# 将历史信息一并传递给大模型
+# class InteractiveChat:
+#     def __init__(self, model):
+#         self.model = model
+#         self.messages = [{"role": "system", "content": "Link start."}]
+
+#     def chat(self, input_str):
+#         input_str = input_str.replace(" ", "").strip()
+#         self.messages.append({"role": "user", "content": input_str})
+#         print("input_str: ", input_str)
+#         entities = get_entity(input_str)
+#         print("识别到的实体: ", entities)
+
+#         if entities:
+#             prompt = search_entity_from_neo4j(input_str, entities)
+
+#         else:
+#             print("未识别到实体，直接提交问题给大模型")
+#             prompt = PROMPT_TEMPLATE1.format(question=input_str)
+
+#         prompt = f"历史信息：\n{self.messages}\n\n{prompt}"
+#         print("提示词（包含历史信息）:", prompt)
+#         chain = self.model | StrOutputParser()
+#         response = chain.invoke(self.messages)
+#         self.messages.append({"role": "assistant", "content": response})
+#         print("消息记录: ", self.messages)
+#         return response
+
+#     def clear_history(self):
+#         self.messages = [{"role": "system", "content": "Link start."}]
 
 
 # 创建前端框架
