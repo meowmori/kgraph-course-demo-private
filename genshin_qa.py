@@ -55,12 +55,11 @@ def get_entity(input_str):
 
 
 # 提示词模板
-PROMPT_TEMPLATE = """已知信息：
-{context} 
-根据上面提供的三元组信息，简洁和专业地回答用户的问题（该问题和《原神》这款游戏相关）。如果无法从中得到答案，请你根据你的理解回答用户问题。问题是：{question}"""
+PROMPT_TEMPLATE = """已知信息：{context} 
+根据上面提供的三元组信息，简洁而专业地回答用户的问题（该问题和《原神》这款游戏相关）。如果无法从中得到答案，请你根据你的理解回答用户问题。问题是：{question}"""
 
 
-PROMPT_TEMPLATE1 = """请你用你的已有知识，简洁和专业地回答用户的问题（该问题和《原神》这款游戏相关）。如果无法从中得到答案，请结合互联网搜索结果，根据你的理解回答用户问题。问题是：{question}"""
+PROMPT_TEMPLATE1 = """请你用你的已有知识，简洁而专业地回答用户的问题（该问题和《原神》这款游戏相关）。如果无法从中得到答案，请结合互联网搜索结果，根据你的理解回答用户问题。问题是：{question}"""
 
 
 # 获取提示词模板
@@ -82,7 +81,7 @@ def search_entity_from_neo4j(question, entities):
 
     # 查询三元组
     query = """
-    MATCH (a:Entity)-[r]->(b:Entity)
+    MATCH (a)-[r]->(b)
     WHERE a.name IN $entity_names
     RETURN a.name AS start_node, type(r) AS relation, b.name AS end_node
     """
@@ -105,11 +104,11 @@ class InteractiveChat:
 
     def chat(self, input_str):
         input_str = input_str.replace(" ", "").strip()
-        entitys = get_entity(input_str)
-        print("识别到的实体: ", entitys)
+        entities = get_entity(input_str)
+        print("识别到的实体: ", entities)
 
-        if entitys:
-            prompt = search_entity_from_neo4j(input_str, entitys)
+        if entities:
+            prompt = search_entity_from_neo4j(input_str, entities)
         else:
             print("未识别到实体，直接提交问题给大模型")
             prompt = PROMPT_TEMPLATE1.format(question=input_str)
